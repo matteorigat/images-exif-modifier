@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from exif import Image as ExifImage
 
 # assign directory
-directory = '/Users/matteorigat/Desktop/images_copy'
+directory = '/Volumes/SanDisk/Matteo/Foto Matteo completo/2005-04 Venezia'
 
 # new date  -> if False the old value will remain
 new_year = 2015  # like 2023 or False
@@ -22,6 +22,10 @@ new_second = False  # max 59 or False
 # recommended only if you set also the time
 increment = 1  # in seconds of False
 
+
+
+changecoord = False
+
 """
 
 DO NOT EDIT BELOW !!!
@@ -29,15 +33,34 @@ DO NOT EDIT BELOW !!!
 """
 
 EXIF_TAGS = [
-    #"make",
-    # "model",
-    "datetime_original",
-    # "gps_latitude",
-    # "gps_latitude_ref",
-    # "gps_longitude",
-    # "gps_longitude_ref",
-    # "gps_altitude",
+     "make",
+     "model",
+     "datetime",
+     "datetime_digitized",
+     "datetime_original",
+     "gps_latitude",
+     "gps_latitude_ref",
+     "gps_longitude",
+     "gps_longitude_ref",
+     "gps_altitude",
 ]
+
+
+EXIF_ALL_TAGS = ['_exif_ifd_pointer', '_gps_ifd_pointer', 'aperture_value', 'brightness_value', 'color_space',
+ 'components_configuration', 'compression', 'datetime', 'datetime_digitized', 'datetime_original', 'exif_version',
+ 'exposure_bias_value', 'exposure_mode', 'exposure_program', 'exposure_time', 'f_number', 'flash',
+ 'flashpix_version', 'focal_length', 'focal_length_in_35mm_film', 'gps_altitude', 'gps_altitude_ref',
+ 'gps_datestamp', 'gps_dest_bearing', 'gps_dest_bearing_ref', 'gps_horizontal_positioning_error',
+ 'gps_img_direction', 'gps_img_direction_ref', 'gps_latitude', 'gps_latitude_ref', 'gps_longitude',
+ 'gps_longitude_ref', 'gps_speed', 'gps_speed_ref', 'gps_timestamp', 'jpeg_interchange_format',
+ 'jpeg_interchange_format_length', 'lens_make', 'lens_model', 'lens_specification', 'make', 'maker_note',
+ 'metering_mode', 'model', 'orientation', 'photographic_sensitivity', 'pixel_x_dimension', 'pixel_y_dimension',
+ 'resolution_unit', 'scene_capture_type', 'scene_type', 'sensing_method', 'shutter_speed_value', 'software',
+ 'subject_area', 'subsec_time_digitized', 'subsec_time_original', 'white_balance', 'x_resolution',
+ 'y_and_c_positioning', 'y_resolution']
+
+
+
 
 # change date
 def change_date(images):
@@ -70,10 +93,15 @@ def change_date(images):
         exif_img.datetime_digitized = old_date.strftime("%Y:%m:%d %H:%M:%S")
         exif_img.datetime_original = old_date.strftime("%Y:%m:%d %H:%M:%S")
 
-        with open(img, "wb") as ofile:
-            ofile.write(exif_img.get_file())
 
-        break
+        if(changecoord):
+            exif_img.gps_latitude
+            exif_img.gps_longitude
+            exif_img.gps_altitude
+
+
+        with open(image_path, "wb") as ofile:
+            ofile.write(exif_img.get_file())
 
 
 # View data
@@ -89,7 +117,31 @@ def view_data(images):
             print("{}: {}".format(tag, value))
 
         print("")
-        break
+
+
+# View data
+def view_first_all_data(img):
+        print(img)
+        image_path = os.path.join(directory, img)
+        with open(image_path, "rb") as input_file:
+            img = ExifImage(input_file)
+
+        for tag in EXIF_ALL_TAGS:
+            value = img.get(tag)
+            if(value is not None):
+                print("{}: {}".format(tag, value))
+
+
+def view_all_dates(images):
+    for img in images:
+        print(img)
+        image_path = os.path.join(directory, img)
+        with open(image_path, "rb") as input_file:
+            img = ExifImage(input_file)
+
+        print("{}: {}".format("datetime_original", img.get("datetime_original")))
+
+
 
 
 
@@ -100,15 +152,22 @@ if __name__ == '__main__':
 
     # iterate over files in that directory
     for filename in os.listdir(directory):
+        if(filename==".DS_Store"):
+            try:
+                os.remove(os.path.join(directory, filename))
+            except:
+                print("Errore remove .DS_Store manually")
+
         images.append(filename)
 
-    print("\nFIRST LOOK\n")
-    view_data(images)
+    view_all_dates(images)
 
-    change_date(images)
+    #view_first_all_data(images[0])
 
-    print("\nAFTER\n")
-    view_data(images)
+    #change_date(images)
+
+    #print("\nAFTER\n")
+    #view_data(images)
 
 
 
