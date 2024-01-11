@@ -6,10 +6,11 @@ import geopy.geocoders
 import ssl
 import certifi
 import requests
+import filetype
 
 
 # assign directory
-directory = '/Volumes/SanDisk/Matteo/Foto Matteo completo redated/2002 estate/castiglione/agosto'
+directory = '/Users/matteorigat/Desktop/images_copy'
 
 #insert the city to set coordinates
 city = "Roccamare"  # String or False
@@ -74,25 +75,22 @@ def read_path(images):
             print(f"Skipping directory: {full_path}")
             continue
 
-        # Remove .DS_Store
+        """# Remove .DS_Store
         if filename == ".DS_Store":
             try:
                 os.remove(full_path)
                 print(".DS_Store removed.")
             except Exception as e:
                 print(f"Error removing .DS_Store: {e}")
-            continue
+            continue"""
 
-        # Check for video files
-        if ".mp4" in filename:
-            print('\033[91m' + f"MP4 file found: {full_path}" + '\033[0m')
-        elif ".mov" in filename:
-            print('\033[91m' + f"MOV file found: {full_path}" + '\033[0m')
-        else:
+
+        if any(filename.lower().endswith(i) for i in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']):
+            print('\033[91m' + f"video file found: {full_path}" + '\033[0m')
+        elif any(filename.lower().endswith(i) for i in ['.jpg', '.jpeg', '.jfif', '.tiff', '.tif', '.png', '.gif', '.webp', ".bmp", ".heif", ".heic",]):
             # Add image files to the list
             images.append(filename)
     images.sort()
-
 
 
 
@@ -167,31 +165,17 @@ def change_tags(images, lat, lon, alt):
 
 # View data
 def view_data(images):
-    for img_filename in images:
-        print(img_filename)
-        image_path = os.path.join(directory, img_filename)
+    for img in images:
+        print(img)
+        image_path = os.path.join(directory, img)
+        with open(image_path, "rb") as input_file:
+            img = ExifImage(input_file)
 
-        # Check if the path is a file (not a directory)
-        if os.path.isfile(image_path):
-            with open(image_path, "rb") as input_file:
-                exif_img = ExifImage(input_file)
+        for tag in EXIF_TAGS:
+            value = img.get(tag)
+            print("{}: {}".format(tag, value))
 
-            # Check if required EXIF tags are present
-            try:
-                if all(tag in exif_img and exif_img[tag] is not None for tag in EXIF_TAGS):
-                    for tag in EXIF_TAGS:
-                        value = exif_img[tag]
-                        print("{}: {}".format(tag, value))
-                else:
-                    print("Required EXIF tags not present in {}".format(image_path))
-            except KeyError as e:
-                print("Error accessing EXIF data in {}: {}".format(image_path, e))
-            except TypeError as e:
-                print("Error accessing EXIF data in {}: {}".format(image_path, e))
-
-            print("")
-        else:
-            print("{} is a directory, skipping.".format(image_path))
+        print("")
 
 
 # View data
