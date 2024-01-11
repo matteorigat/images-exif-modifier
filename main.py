@@ -1,8 +1,5 @@
 import os
-#import sys
-#import filedate
 from datetime import datetime, timedelta
-# pip3 install exif
 from exif import Image as ExifImage
 # importing geopy library and Nominatim class
 import geopy.geocoders
@@ -29,11 +26,8 @@ new_second = False  # max 59 or False
 # do you want to increment photos timestamps
 # to have them in the order in which they are read
 # recommended only if you set also the time
-increment = False  # in seconds of False
+increment = False  # in seconds or False
 
-
-
-changecoord = False
 
 """
 
@@ -125,8 +119,6 @@ def find_coordinateds():
     return lat, lon, alt
 
 
-
-
 # change date
 def change_tags(images, lat, lon, alt):
     increment2 = 0
@@ -174,7 +166,6 @@ def change_tags(images, lat, lon, alt):
 
 
 # View data
-# View data
 def view_data(images):
     for img_filename in images:
         print(img_filename)
@@ -216,6 +207,7 @@ def view_first_all_data(img):
                 print("{}: {}".format(tag, value))
 
 
+# View data
 def view_all_dates(images):
     for img in images:
         print(img)
@@ -229,8 +221,6 @@ def view_all_dates(images):
 
 
 
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     images = []
 
@@ -239,7 +229,7 @@ if __name__ == '__main__':
 
     view_data(images)
     #view_all_dates(images)
-    # view_first_all_data(images[0])
+    #view_first_all_data(images[0])
 
     lat, lon, alt = 0, 0, 0
     if(city):
@@ -251,43 +241,3 @@ if __name__ == '__main__':
         change_tags(images, lat, lon, alt)
         print("\nAFTER\n")
         view_data(images)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-""" # checking if it is a file
-    if os.path.isfile(a):
-        with open(a, 'rb') as image_file:
-            my_image = Image(image_file)
-            my_image.model = "Pixel 10"
-            print(my_image.get("datetime_original"), my_image.get("gps_longitude"), my_image.get("model"))
-            #sys.exit()
-
-
-
-
-
-        a_file = filedate.File(a)
-
-        a_file.set(
-            created = "2022.01.01 13:00:00",
-            modified = "2022.01.01 13:00:00",
-            accessed = "2022.01.01 13:00:00"
-        )
-
-        #after = filedate.File(a)
-        #print(after.get())"""
