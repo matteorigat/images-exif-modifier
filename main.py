@@ -12,14 +12,14 @@ import requests
 
 
 # assign directory
-directory = '/Volumes/SanDisk/Matteo/Foto Matteo completo redated/2002 estate/castiglione/con Vighi'
+directory = '/Volumes/SanDisk/Matteo/Foto Matteo completo redated/2002 estate/castiglione/agosto'
 
 #insert the city to set coordinates
 city = "Roccamare"  # String or False
 
 # new date  -> if False the old value will remain
 new_year = 2002  # like 2023 or False
-new_month = 6  # max 12 or False
+new_month = 8  # max 12 or False
 new_day = 20  # max 31 or False
 
 new_hour = False  # max 23 or False
