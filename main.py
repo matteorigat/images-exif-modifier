@@ -1,24 +1,23 @@
 import os
+import ssl
+import sys
 from datetime import datetime, timedelta
-from exif import Image as ExifImage
+import certifi
 # importing geopy library and Nominatim class
 import geopy.geocoders
-import ssl
-import certifi
 import requests
-import filetype
-
+from exif import Image as ExifImage, GpsAltitudeRef
 
 # assign directory
-directory = '/Users/matteorigat/Desktop/images_copy'
+directory = '/Users/matteorigat/Desktop/myimages/nomodified'
 
-#insert the city to set coordinates
-city = "Roccamare"  # String or False
+# insert the city to set coordinates
+city = "milano"  # String or False
 
 # new date  -> if False the old value will remain
-new_year = 2002  # like 2023 or False
-new_month = 8  # max 12 or False
-new_day = 20  # max 31 or False
+new_year = 2024  # like 2023 or False
+new_month = 1  # max 12 or False
+new_day = 10 # max 31 or False
 
 new_hour = False  # max 23 or False
 new_minute = False  # max 59 or False
@@ -29,40 +28,37 @@ new_second = False  # max 59 or False
 # recommended only if you set also the time
 increment = False  # in seconds or False
 
-
 """
 
 DO NOT EDIT BELOW !!!
 
 """
 
-
 EXIF_TAGS = [
-     #"make",
-     #"model",
-     #"datetime",
-     #"datetime_digitized",
-     "datetime_original",
-     "gps_latitude",
-     #"gps_latitude_ref",
-     "gps_longitude",
-     #"gps_longitude_ref",
-     "gps_altitude",
+    "datetime_original",
+    "gps_latitude",
+    "gps_latitude_ref",
+    "gps_longitude",
+    "gps_longitude_ref",
+    "gps_altitude",
 ]
 
-
 EXIF_ALL_TAGS = ['_exif_ifd_pointer', '_gps_ifd_pointer', 'aperture_value', 'brightness_value', 'color_space',
- 'components_configuration', 'compression', 'datetime', 'datetime_digitized', 'datetime_original', 'exif_version',
- 'exposure_bias_value', 'exposure_mode', 'exposure_program', 'exposure_time', 'f_number', 'flash',
- 'flashpix_version', 'focal_length', 'focal_length_in_35mm_film', 'gps_altitude', 'gps_altitude_ref',
- 'gps_datestamp', 'gps_dest_bearing', 'gps_dest_bearing_ref', 'gps_horizontal_positioning_error',
- 'gps_img_direction', 'gps_img_direction_ref', 'gps_latitude', 'gps_latitude_ref', 'gps_longitude',
- 'gps_longitude_ref', 'gps_speed', 'gps_speed_ref', 'gps_timestamp', 'jpeg_interchange_format',
- 'jpeg_interchange_format_length', 'lens_make', 'lens_model', 'lens_specification', 'make', 'maker_note',
- 'metering_mode', 'model', 'orientation', 'photographic_sensitivity', 'pixel_x_dimension', 'pixel_y_dimension',
- 'resolution_unit', 'scene_capture_type', 'scene_type', 'sensing_method', 'shutter_speed_value', 'software',
- 'subject_area', 'subsec_time_digitized', 'subsec_time_original', 'white_balance', 'x_resolution',
- 'y_and_c_positioning', 'y_resolution']
+                 'components_configuration', 'compression', 'datetime', 'datetime_digitized', 'datetime_original',
+                 'exif_version',
+                 'exposure_bias_value', 'exposure_mode', 'exposure_program', 'exposure_time', 'f_number', 'flash',
+                 'flashpix_version', 'focal_length', 'focal_length_in_35mm_film', 'gps_altitude', 'gps_altitude_ref',
+                 'gps_datestamp', 'gps_dest_bearing', 'gps_dest_bearing_ref', 'gps_horizontal_positioning_error',
+                 'gps_img_direction', 'gps_img_direction_ref', 'gps_latitude', 'gps_latitude_ref', 'gps_longitude',
+                 'gps_longitude_ref', 'gps_speed', 'gps_speed_ref', 'gps_timestamp', 'jpeg_interchange_format',
+                 'jpeg_interchange_format_length', 'lens_make', 'lens_model', 'lens_specification', 'make',
+                 'maker_note',
+                 'metering_mode', 'model', 'orientation', 'photographic_sensitivity', 'pixel_x_dimension',
+                 'pixel_y_dimension',
+                 'resolution_unit', 'scene_capture_type', 'scene_type', 'sensing_method', 'shutter_speed_value',
+                 'software',
+                 'subject_area', 'subsec_time_digitized', 'subsec_time_original', 'white_balance', 'x_resolution',
+                 'y_and_c_positioning', 'y_resolution']
 
 
 # iterate over files in that directory
@@ -84,14 +80,13 @@ def read_path(images):
                 print(f"Error removing .DS_Store: {e}")
             continue"""
 
-
         if any(filename.lower().endswith(i) for i in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']):
             print('\033[91m' + f"video file found: {full_path}" + '\033[0m')
-        elif any(filename.lower().endswith(i) for i in ['.jpg', '.jpeg', '.jfif', '.tiff', '.tif', '.png', '.gif', '.webp', ".bmp", ".heif", ".heic",]):
+        elif any(filename.lower().endswith(i) for i in
+                 ['.jpg', '.jpeg', '.jfif', '.tiff', '.tif', '.png', '.gif', '.webp', ".bmp", ".heif", ".heic", ]):
             # Add image files to the list
             images.append(filename)
     images.sort()
-
 
 
 def find_coordinateds():
@@ -117,6 +112,20 @@ def find_coordinateds():
     return lat, lon, alt
 
 
+def convert_coord(x, check):
+    degrees = int(x)
+    minutes = int((x - degrees) * 60)
+    seconds = (x - degrees - minutes / 60) * 3600
+    if (check):
+        direction = "N" if degrees >= 0 else "S"
+    else:
+        direction = "E" if degrees >= 0 else "W"
+
+    formatted = (abs(degrees), minutes, round(seconds, 2))
+
+    return formatted, direction
+
+
 # change date
 def change_tags(images, lat, lon, alt):
     increment2 = 0
@@ -126,23 +135,22 @@ def change_tags(images, lat, lon, alt):
         with open(image_path, "rb") as input_file:
             exif_img = ExifImage(input_file)
 
-        if(new_year and new_month and new_day):
-            old_date = datetime(1970, 1, 1)
+        if new_year and new_month and new_day:
+            old_date = datetime(1970, 1, 1, 0, 0, 0)
             try:
                 old_date = datetime.strptime(exif_img.get("datetime_original"), "%Y:%m:%d %H:%M:%S")
             except:
                 print("date in a wrong format")
-                old_date = datetime(1970, 1, 1, 0, 0, 0)
 
-            if (new_year): old_date = old_date.replace(year=new_year)
-            if (new_month): old_date = old_date.replace(month=new_month)
-            if (new_day): old_date = old_date.replace(day=new_day)
+            if new_year: old_date = old_date.replace(year=new_year)
+            if new_month: old_date = old_date.replace(month=new_month)
+            if new_day: old_date = old_date.replace(day=new_day)
 
-            if (new_hour): old_date = old_date.replace(hour=new_hour)
-            if (new_minute): old_date = old_date.replace(minute=new_minute)
-            if (new_second): old_date = old_date.replace(second=new_second)
+            if new_hour: old_date = old_date.replace(hour=new_hour)
+            if new_minute: old_date = old_date.replace(minute=new_minute)
+            if new_second: old_date = old_date.replace(second=new_second)
 
-            if (increment):
+            if increment:
                 old_date = old_date + timedelta(seconds=increment2)
                 increment2 += increment
 
@@ -152,13 +160,21 @@ def change_tags(images, lat, lon, alt):
             exif_img.datetime_original = old_date.strftime("%Y:%m:%d %H:%M:%S")
             changed = True
 
-        if(city):
-            exif_img.gps_latitude = lat
-            exif_img.gps_longitude = lon
-            exif_img.gps_altitude = alt
-            changed = True
+        if city:
+            try:
+                exif_img.gps_latitude, exif_img.gps_latitude_ref = convert_coord(lat, True)
+                exif_img.gps_longitude, exif_img.gps_longitude_ref = convert_coord(lon, False)
+                exif_img.gps_altitude = alt
+            except:
+                try:
+                    exif_img.gps_latitude = lat
+                    exif_img.gps_longitude = lon
+                    exif_img.gps_altitude = alt
+                except:
+                    print("GPS coordinates could not be converted")
+            finally: changed = True
 
-        if(changed):
+        if changed:
             with open(image_path, "wb") as ofile:
                 ofile.write(exif_img.get_file())
 
@@ -172,23 +188,27 @@ def view_data(images):
             img = ExifImage(input_file)
 
         for tag in EXIF_TAGS:
-            value = img.get(tag)
-            print("{}: {}".format(tag, value))
+            try:
+                value = img.get(tag)
+                print("{}: {}".format(tag, value))
+            except:
+                print("Tag {} could not be read".format(tag))
+                sys.exit()
 
         print("")
 
 
 # View data
 def view_first_all_data(img):
-        print(img)
-        image_path = os.path.join(directory, img)
-        with open(image_path, "rb") as input_file:
-            img = ExifImage(input_file)
+    print(img)
+    image_path = os.path.join(directory, img)
+    with open(image_path, "rb") as input_file:
+        img = ExifImage(input_file)
 
-        for tag in EXIF_ALL_TAGS:
-            value = img.get(tag)
-            if(value is not None):
-                print("{}: {}".format(tag, value))
+    for tag in EXIF_ALL_TAGS:
+        value = img.get(tag)
+        if (value is not None):
+            print("{}: {}".format(tag, value))
 
 
 # View data
@@ -202,9 +222,6 @@ def view_all_dates(images):
         print("{}: {}".format("datetime_original", img.get("datetime_original")))
 
 
-
-
-
 if __name__ == '__main__':
     images = []
 
@@ -212,16 +229,17 @@ if __name__ == '__main__':
     read_path(images)
 
     view_data(images)
-    #view_all_dates(images)
-    #view_first_all_data(images[0])
+    # view_all_dates(images)
+    # view_first_all_data(images[0])
 
     lat, lon, alt = 0, 0, 0
-    if(city):
+    if city:
         print("\n")
         lat, lon, alt = find_coordinateds()
 
-    areyousure = input("\nyou are changing the date to \033[93m" +str(new_day)+"/"+str(new_month)+"/"+str(new_year)+ "\033[0m are you sure? y/n:\n")
-    if(areyousure == "y"):
+    areyousure = input("\nyou are changing the date to \033[93m" + str(new_day) + "/" + str(new_month) + "/" + str(
+        new_year) + "\033[0m are you sure? y/n:\n")
+    if areyousure == "y":
         change_tags(images, lat, lon, alt)
         print("\nAFTER\n")
         view_data(images)
