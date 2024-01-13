@@ -6,33 +6,36 @@ import certifi
 # importing geopy library and Nominatim class
 import geopy.geocoders
 import requests
-from exif import Image as ExifImage, GpsAltitudeRef
+from exif import Image as ExifImage
 
 # assign directory
 directory = '/Users/matteorigat/Desktop/myimages/nomodified'
 
-# insert the city to set coordinates
-city = "milano"  # String or False
+# insert the address to set coordinates it can be an address, a city etc
+address = "milano"  # String or False
 
-# new date  -> if False the old value will remain
+# new date  -> if False the old values will remain
 new_year = 2024  # like 2023 or False
-new_month = 1  # max 12 or False
-new_day = 10 # max 31 or False
+new_month = 1    # max 12 or False
+new_day = 10     # max 31 or False
 
-new_hour = False  # max 23 or False
-new_minute = False  # max 59 or False
-new_second = False  # max 59 or False
+# new time -> if False the old values will remain
+new_hour = False     # max 23 or False
+new_minute = False   # max 59 or False
+new_second = False   # max 59 or False
 
 # do you want to increment photos timestamps
 # to have them in the order in which they are read
 # recommended only if you set also the time
 increment = False  # in seconds or False
 
+
 """
 
 DO NOT EDIT BELOW !!!
 
 """
+
 
 EXIF_TAGS = [
     "datetime_original",
@@ -61,7 +64,7 @@ EXIF_ALL_TAGS = ['_exif_ifd_pointer', '_gps_ifd_pointer', 'aperture_value', 'bri
                  'y_and_c_positioning', 'y_resolution']
 
 
-# iterate over files in that directory
+# Iterate over files in the directory to select only photos
 def read_path(images):
     for filename in os.listdir(directory):
         full_path = os.path.join(directory, filename)
@@ -79,27 +82,26 @@ def read_path(images):
             except Exception as e:
                 print(f"Error removing .DS_Store: {e}")
             continue"""
-
+        # Skip videos, maybe in the future i'll implement a video modifier
         if any(filename.lower().endswith(i) for i in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']):
             print('\033[91m' + f"video file found: {full_path}" + '\033[0m')
         elif any(filename.lower().endswith(i) for i in
                  ['.jpg', '.jpeg', '.jfif', '.tiff', '.tif', '.png', '.gif', '.webp', ".bmp", ".heif", ".heic", ]):
             # Add image files to the list
             images.append(filename)
+    # order alphabetically
     images.sort()
 
 
+# Retrieve latitude, longitude and altitude from an address
 def find_coordinateds():
     ctx = ssl.create_default_context(cafile=certifi.where())
     geopy.geocoders.options.default_ssl_context = ctx
 
     # calling the Nominatim tool and create Nominatim class
     geolocator = geopy.Nominatim(user_agent="images_editor")
+    location = geolocator.geocode(address)
 
-    # entering the location name
-    location = geolocator.geocode(city)
-
-    # printing address
     print(location.address)
     lat = location.latitude
     lon = location.longitude
@@ -107,11 +109,11 @@ def find_coordinateds():
     r = requests.get(url)
     data = r.json()
     alt = data['results'][0]['elevation']
-    # printing latitude and longitude
     print(lat, lon, alt)
     return lat, lon, alt
 
 
+# Recent photos apps use coordinates in degrees
 def convert_coord(x, check):
     degrees = int(x)
     minutes = int((x - degrees) * 60)
@@ -126,7 +128,7 @@ def convert_coord(x, check):
     return formatted, direction
 
 
-# change date
+# Change exif tags
 def change_tags(images, lat, lon, alt):
     increment2 = 0
     changed = False
@@ -160,7 +162,7 @@ def change_tags(images, lat, lon, alt):
             exif_img.datetime_original = old_date.strftime("%Y:%m:%d %H:%M:%S")
             changed = True
 
-        if city:
+        if address:
             try:
                 exif_img.gps_latitude, exif_img.gps_latitude_ref = convert_coord(lat, True)
                 exif_img.gps_longitude, exif_img.gps_longitude_ref = convert_coord(lon, False)
@@ -174,12 +176,18 @@ def change_tags(images, lat, lon, alt):
                     print("GPS coordinates could not be converted")
             finally: changed = True
 
+        # DANGER ZONE: you are overwriting your photos data
         if changed:
+            # DANGER ZONE: you are overwriting your photos data
             with open(image_path, "wb") as ofile:
+                # DANGER ZONE: you are overwriting your photos data
+                # DANGER ZONE: you are overwriting your photos data
                 ofile.write(exif_img.get_file())
+                # DANGER ZONE: you are overwriting your photos data
+                # DANGER ZONE: you are overwriting your photos data
 
 
-# View data
+# View main data, used most of the time to get a quick overview of the situation
 def view_data(images):
     for img in images:
         print(img)
@@ -198,7 +206,7 @@ def view_data(images):
         print("")
 
 
-# View data
+# View all exif data, since this print many lines it has as input a single image
 def view_first_all_data(img):
     print(img)
     image_path = os.path.join(directory, img)
@@ -211,7 +219,7 @@ def view_first_all_data(img):
             print("{}: {}".format(tag, value))
 
 
-# View data
+# View only the date of all the images in the directory
 def view_all_dates(images):
     for img in images:
         print(img)
@@ -228,15 +236,19 @@ if __name__ == '__main__':
     # iterate over files in that directory
     read_path(images)
 
-    view_data(images)
-    # view_all_dates(images)
-    # view_first_all_data(images[0])
+    # view data
+    view_data(images)                         # View main data, used most of the time to get a quick overview of the situation
+    # view_all_dates(images)                    # View all exif data, since this print many lines it has as input a single
+    # image view_first_all_data(images[0])      # View only the date of all the images in the directory
 
+    # Retrieve coordinates
     lat, lon, alt = 0, 0, 0
-    if city:
+    if address:
         print("\n")
         lat, lon, alt = find_coordinateds()
 
+
+    # DANGER ZONE: you are overwriting your photos data
     areyousure = input("\nyou are changing the date to \033[93m" + str(new_day) + "/" + str(new_month) + "/" + str(
         new_year) + "\033[0m are you sure? y/n:\n")
     if areyousure == "y":
