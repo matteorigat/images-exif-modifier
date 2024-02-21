@@ -11,13 +11,13 @@ import piexif
 from PIL import Image
 
 # assign directory
-directory = '/Users/matteorigat/Desktop/images project/test'
+directory = '/Users/matteorigat/Desktop/images project/myimages'
 
 # insert the address to set coordinates it can be an address, a city etc
-address = "berlino"  # String or False
+address = "Livigno"  # String or False
 
 # new date  -> if False the old values will remain
-new_year = 2020  # like 2023 or False
+new_year = 2004  # like 2023 or False
 new_month = 1    # max 12 or False
 new_day = 22     # max 31 or False
 
@@ -26,8 +26,9 @@ new_hour = False     # max 23 or False
 new_minute = False   # max 59 or False
 new_second = False   # max 59 or False
 
-# do you want to increment photos timestamps
+# do you want to increment photos timestamps?
 # to have them in the order in which they are read
+# please note that the photos will be ordered alphabetically
 # recommended only if you set also the time
 increment = False  # in seconds or False
 
