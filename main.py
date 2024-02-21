@@ -8,15 +8,20 @@ import geopy.geocoders
 import requests
 from exif import Image as ExifImage
 
+import piexif
+from PIL import Image
+import numpy as np
+from datetime import datetime
+
 # assign directory
-directory = '/Users/matteorigat/Desktop/myimages/nomodified'
+directory = '/Users/matteorigat/Desktop/images project/test'
 
 # insert the address to set coordinates it can be an address, a city etc
-address = "milano"  # String or False
+address = "bormio"  # String or False
 
 # new date  -> if False the old values will remain
 new_year = 2024  # like 2023 or False
-new_month = 1    # max 12 or False
+new_month = 2    # max 12 or False
 new_day = 10     # max 31 or False
 
 # new time -> if False the old values will remain
@@ -35,7 +40,6 @@ increment = False  # in seconds or False
 DO NOT EDIT BELOW !!!
 
 """
-
 
 EXIF_TAGS = [
     "datetime_original",
@@ -63,7 +67,6 @@ EXIF_ALL_TAGS = ['_exif_ifd_pointer', '_gps_ifd_pointer', 'aperture_value', 'bri
                  'subject_area', 'subsec_time_digitized', 'subsec_time_original', 'white_balance', 'x_resolution',
                  'y_and_c_positioning', 'y_resolution']
 
-
 # Iterate over files in the directory to select only photos
 def read_path(images):
     for filename in os.listdir(directory):
@@ -74,14 +77,6 @@ def read_path(images):
             print(f"Skipping directory: {full_path}")
             continue
 
-        """# Remove .DS_Store
-        if filename == ".DS_Store":
-            try:
-                os.remove(full_path)
-                print(".DS_Store removed.")
-            except Exception as e:
-                print(f"Error removing .DS_Store: {e}")
-            continue"""
         # Skip videos, maybe in the future i'll implement a video modifier
         if any(filename.lower().endswith(i) for i in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']):
             print('\033[91m' + f"video file found: {full_path}" + '\033[0m')
@@ -102,7 +97,7 @@ def find_coordinateds():
     geolocator = geopy.Nominatim(user_agent="images_editor")
     location = geolocator.geocode(address)
 
-    print(location.address)
+    print("Location found:\n" + location.address)
     lat = location.latitude
     lon = location.longitude
     url = f"https://api.opentopodata.org/v1/aster30m?locations={lat},{lon}"
@@ -110,7 +105,10 @@ def find_coordinateds():
     data = r.json()
     alt = data['results'][0]['elevation']
     print(lat, lon, alt)
-    return lat, lon, alt
+    print(convert_coord(lat, True))
+    print(convert_coord(lon, False))
+    # check https://coordinates-converter.com/
+    return location.address, lat, lon, alt
 
 
 # Recent photos apps use coordinates in degrees
@@ -123,13 +121,13 @@ def convert_coord(x, check):
     else:
         direction = "E" if degrees >= 0 else "W"
 
-    formatted = (abs(degrees), minutes, round(seconds, 2))
+    formatted = (float(abs(degrees)), float(minutes), round(seconds, 2))
 
     return formatted, direction
 
 
 # Change exif tags
-def change_tags(images, lat, lon, alt):
+def change_tags(images, lat, lon, alt, dateflag, geoflag):
     increment2 = 0
     changed = False
     for img in images:
@@ -137,7 +135,7 @@ def change_tags(images, lat, lon, alt):
         with open(image_path, "rb") as input_file:
             exif_img = ExifImage(input_file)
 
-        if new_year and new_month and new_day:
+        if dateflag and new_year and new_month and new_day:
             old_date = datetime(1970, 1, 1, 0, 0, 0)
             try:
                 old_date = datetime.strptime(exif_img.get("datetime_original"), "%Y:%m:%d %H:%M:%S")
@@ -162,29 +160,25 @@ def change_tags(images, lat, lon, alt):
             exif_img.datetime_original = old_date.strftime("%Y:%m:%d %H:%M:%S")
             changed = True
 
-        if address:
+        if geoflag and address:
             try:
                 exif_img.gps_latitude, exif_img.gps_latitude_ref = convert_coord(lat, True)
                 exif_img.gps_longitude, exif_img.gps_longitude_ref = convert_coord(lon, False)
                 exif_img.gps_altitude = alt
+                changed = True
             except:
                 try:
                     exif_img.gps_latitude = lat
                     exif_img.gps_longitude = lon
                     exif_img.gps_altitude = alt
+                    changed = True
                 except:
                     print("GPS coordinates could not be converted")
-            finally: changed = True
 
-        # DANGER ZONE: you are overwriting your photos data
         if changed:
-            # DANGER ZONE: you are overwriting your photos data
             with open(image_path, "wb") as ofile:
                 # DANGER ZONE: you are overwriting your photos data
-                # DANGER ZONE: you are overwriting your photos data
                 ofile.write(exif_img.get_file())
-                # DANGER ZONE: you are overwriting your photos data
-                # DANGER ZONE: you are overwriting your photos data
 
 
 # View main data, used most of the time to get a quick overview of the situation
@@ -203,6 +197,11 @@ def view_data(images):
                 print("Tag {} could not be read".format(tag))
                 sys.exit()
 
+        if img.has_exif:
+            status = f"contains EXIF (version {img.exif_version}) information."
+        else:
+            status = "does not contain any EXIF information."
+        print(f"Image {status}")
         print("")
 
 
@@ -237,7 +236,7 @@ if __name__ == '__main__':
     read_path(images)
 
     # view data
-    view_data(images)                         # View main data, used most of the time to get a quick overview of the situation
+    view_data(images)                           # View main data, used most of the time to get a quick overview of the situation
     # view_all_dates(images)                    # View all exif data, since this print many lines it has as input a single
     # image view_first_all_data(images[0])      # View only the date of all the images in the directory
 
@@ -245,13 +244,17 @@ if __name__ == '__main__':
     lat, lon, alt = 0, 0, 0
     if address:
         print("\n")
-        lat, lon, alt = find_coordinateds()
+        address, lat, lon, alt = find_coordinateds()
 
 
     # DANGER ZONE: you are overwriting your photos data
-    areyousure = input("\nyou are changing the date to \033[93m" + str(new_day) + "/" + str(new_month) + "/" + str(
-        new_year) + "\033[0m are you sure? y/n:\n")
-    if areyousure == "y":
-        change_tags(images, lat, lon, alt)
+    dateflag = input("\nyou are changing the date to \033[93m" + str(new_day) + "/" + str(new_month) + "/" + str(
+                      new_year) + "\033[0m are you sure? y/n:\n") == "y"
+
+    geoflag = input("\nyou are changing the location to \033[93m" + str(address) + "\033[0m are you sure? y/n:\n") == "y"
+
+
+    if dateflag or geoflag:
+        change_tags(images, lat, lon, alt, dateflag, geoflag)
         print("\nAFTER\n")
         view_data(images)
