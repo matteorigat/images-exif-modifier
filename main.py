@@ -11,26 +11,34 @@ import piexif
 from PIL import Image
 
 # assign directory
-directory = '/Users/matteorigat/Desktop/images project/myimages'
+directory = "/Volumes/SanDisk/Matteo/Foto Matteo completo redated/2006-04 New York error geo"
 
 # insert the address to set coordinates it can be an address, a city etc
-address = "Livigno"  # String or False
+address = "new york"  # String or False
 
+"""
 # new date  -> if False the old values will remain
-new_year = 2004  # like 2023 or False
-new_month = 1    # max 12 or False
-new_day = 22     # max 31 or False
+new_year = 2010  # like 2023 or False
+new_month = 12    # max 12 or False
+new_day = 28     # max 31 or False
+
+"""
+
+new_year = False  # like 2023 or False
+new_month = False    # max 12 or False
+new_day = False     # max 31 or False
+
 
 # new time -> if False the old values will remain
-new_hour = False     # max 23 or False
-new_minute = False   # max 59 or False
-new_second = False   # max 59 or False
+new_hour = 10     # max 23 or False
+new_minute = 1  # max 59 or False
+new_second = 1  # max 59 or False
 
 # do you want to increment photos timestamps?
 # to have them in the order in which they are read
 # please note that the photos will be ordered alphabetically
 # recommended only if you set also the time
-increment = False  # in seconds or False
+increment = 5  # in seconds or False
 
 
 """
@@ -65,6 +73,10 @@ def read_path(images):
         if os.path.isdir(full_path):
             print(f"Skipping directory: {full_path}")
             continue
+        if filename.startswith('.'):
+            print(f"Skipping hidden file: {full_path}")
+            continue
+
 
         # Skip videos, maybe in the future i'll implement a video modifier
         if any(filename.lower().endswith(i) for i in ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']):
@@ -73,8 +85,14 @@ def read_path(images):
                  ['.jpg', '.jpeg', '.jfif', '.tiff', '.tif', '.png', '.gif', '.webp', ".bmp", ".heif", ".heic", ]):
             # Add image files to the list
             images.append(filename)
-    # order alphabetically
-    images.sort()
+
+    if len(images) == 0:
+        print("No images found!")
+        sys.exit()
+    else:
+        print(len(images), "images found!")
+        # order alphabetically
+        images.sort()
 
 
 # Retrieve latitude, longitude and altitude from an address
@@ -106,18 +124,17 @@ def convert_coord(x, check):
     minutes = int((x - degrees) * 60)
     seconds = (x - degrees - minutes / 60) * 3600
     if (check):
-        direction = "N" if degrees >= 0 else "S"
+        direction = "N" if x >= 0 else "S"
     else:
-        direction = "E" if degrees >= 0 else "W"
+        direction = "E" if x >= 0 else "W"
 
     accuracy = 100  # integer greater than 1, it is a denominator
-    formatted = [(abs(degrees), 1), (minutes, 1), (int(seconds*accuracy), accuracy)]
+    formatted = [(abs(degrees), 1), (abs(minutes), 1), (int(abs(seconds)*accuracy), accuracy)]
 
     return formatted, direction
 
-
 # Change exif tags
-def change_date(images):
+def change_exif(images, dateflag, geoflag,  lat, lon, alt):
     increment2 = 0
     changed = False
     for img in images:
@@ -129,12 +146,12 @@ def change_date(images):
         except KeyError:
             exif_dict = {'0th': {}, 'Exif': {}, 'GPS': {}, '1st': {}, 'thumbnail': None}
 
-        if new_year and new_month and new_day:
+        if dateflag and new_year and new_month and new_day:
             old_date = datetime(1970, 1, 1, 0, 0, 0)
             try:
                 old_date = datetime.strptime(exif_dict['Exif'][piexif.ExifIFD.DateTimeOriginal].decode(), "%Y:%m:%d %H:%M:%S")
             except:
-                print("date in a wrong format")
+                print("Date in a wrong format!")
                 if input("Do you want to continue? y/n:\n") != "y":
                     sys.exit()
 
@@ -157,31 +174,21 @@ def change_date(images):
             exif_dict['GPS'][piexif.GPSIFD.GPSDateStamp] = old_date.strftime("%Y:%m:%d")
             changed = True
 
+
+        if geoflag and lat and lon and alt:
+            # Set GPS Info
+            exif_dict['GPS'][piexif.GPSIFD.GPSVersionID] = (2, 2, 0, 0)
+            exif_dict['GPS'][piexif.GPSIFD.GPSLatitude], exif_dict['GPS'][piexif.GPSIFD.GPSLatitudeRef] = convert_coord(lat, True)
+            exif_dict['GPS'][piexif.GPSIFD.GPSLongitude], exif_dict['GPS'][piexif.GPSIFD.GPSLongitudeRef] = convert_coord(lon, False)
+            exif_dict['GPS'][piexif.GPSIFD.GPSAltitude], exif_dict['GPS'][piexif.GPSIFD.GPSAltitudeRef] = (int(alt * 100), 100), 0
+            changed = True
+
+
         if changed:
             # DANGER ZONE: you are overwriting your photos data
             exif_bytes = piexif.dump(exif_dict)
             new_img.save(image_path, exif=exif_bytes)
 
-def change_coords(images, lat, lon, alt):
-
-    for img in images:
-        image_path = os.path.join(directory, img)
-        new_img = Image.open(image_path)
-
-        try:
-            exif_dict = piexif.load(new_img.info['exif'])
-        except KeyError:
-            exif_dict = {'0th': {}, 'Exif': {}, 'GPS': {}, '1st': {}, 'thumbnail': None}
-
-        # Set GPS Info
-        exif_dict['GPS'][piexif.GPSIFD.GPSVersionID] = (2, 2, 0, 0)
-        exif_dict['GPS'][piexif.GPSIFD.GPSLatitude], exif_dict['GPS'][piexif.GPSIFD.GPSLatitudeRef] = convert_coord(lat, True)
-        exif_dict['GPS'][piexif.GPSIFD.GPSLongitude], exif_dict['GPS'][piexif.GPSIFD.GPSLongitudeRef] = convert_coord(lon, False)
-        exif_dict['GPS'][piexif.GPSIFD.GPSAltitude], exif_dict['GPS'][piexif.GPSIFD.GPSAltitudeRef] = (int(alt*100), 100), 0
-
-        # DANGER ZONE: you are overwriting your photos data
-        exif_bytes = piexif.dump(exif_dict)
-        new_img.save(image_path, exif=exif_bytes)
 
 
 def view_data(images):
@@ -236,23 +243,23 @@ if __name__ == '__main__':
     # view data
     view_data(images)
 
-    # Retrieve coordinates
-    if address:
-        print("\n")
-        address, lat, lon, alt = find_coordinateds()
 
+    print("\n\033[93m" + directory + "\033[0m")
 
     # DANGER ZONE: you are overwriting your photos data
     dateflag = input("\nyou are changing the date to \033[93m" + str(new_day) + "/" + str(new_month) + "/" + str(
                       new_year) + "\033[0m are you sure? y/n:\n") == "y"
 
+    # Retrieve coordinates
+    if address:
+        print("\n")
+        address, lat, lon, alt = find_coordinateds()
+
     geoflag = input("\nyou are changing the location to \033[93m" + str(address) + "\033[0m are you sure? y/n:\n") == "y"
 
 
-    if dateflag:
-        change_date(images)
-    if geoflag and address:
-        change_coords(images, lat, lon, alt)
+    if dateflag or geoflag:
+        change_exif(images, dateflag, geoflag,  lat, lon, alt)
 
     if (dateflag or geoflag) and  input("\nprint output? y/n:\n") == "y":
         print("\nAFTER\n")
